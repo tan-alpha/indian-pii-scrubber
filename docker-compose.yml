@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  pii-scrubber:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: indian-pii-scrubber
+    ports:
+      - "8501:8501"
+    restart: unless-stopped
+    environment:
+      - HF_HUB_OFFLINE=1
+      - TRANSFORMERS_OFFLINE=1
+      - HF_HUB_DISABLE_SYMLINKS_WARNING=1
