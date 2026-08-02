@@ -1,7 +1,7 @@
 .artifacts/
 .agents/
 AGENTS.md
-
+.aider*
 
 # Python cache files
 __pycache__/
