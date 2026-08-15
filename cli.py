@@ -2,8 +2,10 @@
 """
 Indian PII Scrubber - CLI Interface
 
-Sanitize Indian PII (PAN, Aadhaar, Passport, Voter ID, DOB, Phone, Email, Names, Addresses)
-from PDF documents completely offline using Hybrid Presidio + Local GLiNER SLM.
+    Sanitize Indian PII (PAN, Aadhaar, Passport, MRZ, Voter ID, DOB, Phone,
+    Landline, Email, Names, Addresses, Bank Account, IFSC, Pincode, Driving
+    License, GSTIN, Vehicle RC, ITR Acknowledgement, Policy/Customer ID)
+    from PDF documents completely offline using Hybrid Presidio + Local GLiNER SLM.
 
 Usage:
     python cli.py input.pdf -o output_redacted.pdf
@@ -48,7 +50,13 @@ def parse_args():
         "-e", "--entities",
         nargs="+",
         default=DEFAULT_ENTITIES,
-        help="List of PII entity types to redact.",
+        help=(
+            "List of PII entity types to redact. "
+            "Defaults to all standard Indian PII types (PAN, Aadhaar, Passport, "
+            "Passport MRZ, Voter ID, DOB, Phone, IFSC, Pincode, Driving License, "
+            "GSTIN, Vehicle RC, Bank Account, ITR Acknowledgement, Addresses, "
+            "Policy/Customer ID, Names)."
+        ),
     )
     parser.add_argument(
         "-t", "--threshold",

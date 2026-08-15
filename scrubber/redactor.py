@@ -15,21 +15,29 @@ from scrubber.utils import render_page_to_image, draw_bounding_boxes_on_image
 
 logger = logging.getLogger(__name__)
 
-# Default PII entities to redact (Focused PII - excludes generic GPE/LOCATION to avoid over-redacting cities/countries)
+# Default PII entities to redact — all standard Indian PII types enabled by default
+# for maximum privacy protection. Trusted structural IDs are always redacted;
+# gated types require context or SLM corroboration (see analyzer.py GATED_TYPES).
 DEFAULT_ENTITIES = [
     "INDIAN_PAN",
     "INDIAN_AADHAAR",
     "INDIAN_PASSPORT",
+    "INDIAN_PASSPORT_MRZ",
     "INDIAN_VOTER_ID",
     "DATE_OF_BIRTH",
     "INDIAN_PHONE_NUMBER",
     "EMAIL_ADDRESS",
-    "PERSON",
     "TITLE_PERSON_NAME",
     "INDIAN_ADDRESS",
     "POLICY_OR_CUSTOMER_ID",
     "INDIAN_IFSC",
     "INDIAN_PINCODE",
+    "INDIAN_DRIVING_LICENSE",
+    "INDIAN_GSTIN",
+    "INDIAN_VEHICLE_REGISTRATION",
+    "INDIAN_BANK_ACCOUNT",
+    "ITR_ACKNOWLEDGEMENT_NUMBER",
+    "PERSON",
 ]
 
 

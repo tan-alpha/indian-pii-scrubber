@@ -1,6 +1,8 @@
 """
 Presidio Analyzer Orchestrator with spaCy en_core_web_lg model initialization,
 Indian PII pattern recognizer integration, and Local GLiNER SLM enhancement.
+
+Hybrid Analyzer with deterministic context gate and SLM corroboration.
 """
 
 import re
@@ -14,6 +16,7 @@ from presidio_analyzer import AnalyzerEngine, RecognizerRegistry, RecognizerResu
 from presidio_analyzer.nlp_engine import NlpEngineProvider
 from scrubber.recognizers import get_indian_recognizers
 from scrubber.slm import GlinerPiiEngine
+from scrubber.validators import validate_verhoeff, validate_gstin_checksum, validate_pan_structure
 
 logger = logging.getLogger(__name__)
 
@@ -31,27 +34,45 @@ logger = logging.getLogger(__name__)
 #
 # To make redaction reliable we add an explicit, deterministic *context gate*
 # that runs BEFORE redaction. High-precision structural IDs (PAN, Aadhaar,
-# IFSC, Passport, Voter, DOB, Email) are "trusted" — their regexes are specific
+# IFSC, Passport, Voter, GSTIN, MRZ) are "trusted" — their regexes are specific
 # enough that false positives are practically nil, so the SLM is NEVER allowed
 # to veto them (avoids ever un-redacting a real ID). The noisy types below
-# (PINCODE, POLICY, ADDRESS, PHONE) are only kept when there is explicit
-# context evidence.
+# (PINCODE, POLICY, ADDRESS, PHONE, BANK_ACCOUNT) are only kept when there is
+# explicit context evidence.
+#
+# DATE_OF_BIRTH is GATED: dates in documents include invoice dates, maturity
+# dates, transaction dates, etc. — not all dates are DOB. DOB is only redacted
+# with explicit birth context OR SLM corroboration.
+
 GATED_TYPES = {
     "INDIAN_PINCODE",
     "POLICY_OR_CUSTOMER_ID",
     "INDIAN_ADDRESS",
     "INDIAN_PHONE_NUMBER",
+    "INDIAN_BANK_ACCOUNT",
+    "DATE_OF_BIRTH",
 }
 
-# Trusted structural IDs: never vetoes by the context gate or the SLM.
+# Trusted structural IDs: never vetoed by the context gate or the SLM.
+# DATE_OF_BIRTH moved to GATED_TYPES to prevent over-redaction of invoice/maturity dates.
 TRUSTED_TYPES = {
     "INDIAN_PAN",
     "INDIAN_AADHAAR",
     "INDIAN_PASSPORT",
+    "INDIAN_PASSPORT_MRZ",
     "INDIAN_VOTER_ID",
     "INDIAN_IFSC",
-    "DATE_OF_BIRTH",
+    "INDIAN_GSTIN",
+    "INDIAN_DRIVING_LICENSE",
+    "INDIAN_VEHICLE_REGISTRATION",
     "EMAIL_ADDRESS",
+}
+
+# Types that can pass the gate via mathematical checksum (no context needed)
+CHECKSUM_TYPES = {
+    "INDIAN_AADHAAR",
+    "INDIAN_GSTIN",
+    "INDIAN_PAN",
 }
 
 
@@ -142,29 +163,66 @@ class HybridAnalyzerEngine:
 
     def _has_context(self, text: str, res: RecognizerResult, entity_type: str) -> bool:
         """
-        True if a recognizer-defined context keyword is on the SAME physical
-        line as the match.
+        Multi-line proximity engine for context determination.
 
-        Same-line (not char-window) matching is deliberate and what makes the
-        gate bulletproof: a nearby label that actually belongs to a different
-        value must NOT keep an unrelated number. Concretely, in::
+        Rules evaluated in order:
+        Rule 1 (Same-line): Context keyword present on the same line as the match -> Pass.
+        Rule 2 (Preceding-line Key-Value Header): If line N-1 contains a context
+                keyword and ends with a delimiter (:, /, -) or consists solely
+                of label tokens, treat as valid key-value header -> Pass.
+        Rule 3 (Mathematical Checksum Pass): Verhoeff-passing Aadhaar or
+                Mod-36-passing GSTIN passes without requiring nearby keywords.
+        Rule 4 (SLM Corroboration): GLiNER semantic overlap -> Pass.
 
-            Pincode: 560001
-            INR 150000 credited to your account.
-
-        '150000' lives on the "INR 150000 ..." line, which contains no pincode
-        keyword, so it is suppressed — even though "Pincode:" is only one line
-        above. Whole-word/phrase token matching is used so keyword 'pin' does
-        NOT match 'pink'. Cheap and deterministic.
+        Same-line matching is deliberate and what makes the gate bulletproof:
+        a nearby label that actually belongs to a different value must NOT keep
+        an unrelated number.
         """
+        # Rule 3: Mathematical checksum pass (no context needed)
+        if entity_type in CHECKSUM_TYPES:
+            matched_text = text[res.start:res.end]
+            if self._checksum_passes(entity_type, matched_text):
+                return True
+
         keywords = self._context_map.get(entity_type, [])
         if not keywords:
+            # If no context keywords defined and not a checksum type,
+            # and it's a trusted type, it passes elsewhere. For gated types
+            # with no context, fail.
             return False
+
+        # Get the full line containing the match
         line_start = text.rfind("\n", 0, res.start) + 1
         line_end = text.find("\n", res.end)
         if line_end == -1:
             line_end = len(text)
-        tokens = re.findall(r"[a-z]+", text[line_start:line_end].lower())
+        current_line = text[line_start:line_end]
+
+        # Rule 1: Same-line context keyword
+        if self._keyword_on_line(current_line, keywords):
+            return True
+
+        # Rule 2: Preceding-line key-value header
+        if line_start > 0:
+            preceding_line_start = text.rfind("\n", 0, line_start - 1) + 1
+            preceding_line_end = text.rfind("\n", 0, line_start - 1)
+            if preceding_line_end == -1:
+                preceding_line_end = text[:line_start - 1].rfind("\n")
+                if preceding_line_end == -1:
+                    preceding_line_end = line_start - 1
+            preceding_line = text[preceding_line_start:preceding_line_end].rstrip()
+
+            if self._is_key_value_header(preceding_line, entity_type, keywords):
+                return True
+
+        # Rule 4 (SLM) is handled separately in _apply_context_gate via corroborates()
+
+        return False
+
+    def _keyword_on_line(self, line_text: str, keywords: List[str]) -> bool:
+        """Check if any keyword tokens appear as whole words on the line."""
+        tokens = re.findall(r"[a-z]+", line_text.lower())
+
         for kw in keywords:
             kw_tokens = re.findall(r"[a-z]+", kw.lower())
             n = len(kw_tokens)
@@ -173,6 +231,54 @@ class HybridAnalyzerEngine:
             for i in range(len(tokens) - n + 1):
                 if tokens[i : i + n] == kw_tokens:
                     return True
+        return False
+
+    def _is_key_value_header(
+        self, line_text: str, entity_type: str, keywords: List[str]
+    ) -> bool:
+        """
+        Check if the preceding line is a key-value header:
+        - Contains a context keyword
+        - Ends with a delimiter (:, /, -) or consists solely of label tokens
+        """
+        if not line_text:
+            return False
+
+        line_stripped = line_text.strip()
+
+        if not self._keyword_on_line(line_stripped, keywords):
+            return False
+
+        # Check if line ends with a delimiter or is label-only
+        if line_stripped.endswith(":") or line_stripped.endswith("/") or line_stripped.endswith("-"):
+            return True
+
+        # Check if line consists solely of label tokens (no value portion)
+        # e.g., "Pincode:" "Date of Birth:" "Policy No."
+        # Remove trailing delimiters and check
+        cleaned = re.sub(r"[:\-/.,]+$", "", line_stripped).strip()
+
+        # If the cleaned line contains only alphabetic chars and spaces (label only)
+        # and has a context keyword, it's a key-value header
+        label_only = re.match(
+            r"^[A-Za-z\s]*[A-Za-z][A-Za-z\s]*$", cleaned
+        )
+        if label_only and len(cleaned.replace(" ", "").replace("\t", "")) > 0:
+            # Verify it has fewer than 3 numeric tokens (a value would have more)
+            num_tokens = len(re.findall(r"\d", cleaned))
+            if num_tokens == 0:
+                return True
+
+        return False
+
+    def _checksum_passes(self, entity_type: str, matched_text: str) -> bool:
+        """Check if a matched entity passes its mathematical checksum."""
+        if entity_type == "INDIAN_AADHAAR":
+            return validate_verhoeff(matched_text)
+        elif entity_type == "INDIAN_GSTIN":
+            return validate_gstin_checksum(matched_text)
+        elif entity_type == "INDIAN_PAN":
+            return validate_pan_structure(matched_text)
         return False
 
     def _apply_context_gate(
@@ -187,20 +293,35 @@ class HybridAnalyzerEngine:
 
         For each result:
           - Trusted structural IDs are always kept.
-          - Gated types are kept only if a context keyword is nearby OR the SLM
-            corroborates the hit (one GLiNER pass only). Otherwise dropped.
+          - Checksum-passing types (Aadhaar via Verhoeff, GSTIN via Mod-36,
+            PAN structure) are kept without context.
+          - Gated types are kept only if a context keyword is nearby (same-line
+            or preceding-line key-value header) OR the SLM corroborates the hit
+            (one GLiNER pass only). Otherwise dropped.
         """
         target = set(entities) if entities else None
         kept: List[RecognizerResult] = []
         dropped: List[DroppedEntity] = []
+
         for res in results:
             etype = res.entity_type
             # Only gate types the user actually requested (or all, if none).
             if target and etype not in target:
                 continue
+
+            # Trusted types and checksum-passing types are always kept
             if etype not in self._gated_types or etype in TRUSTED_TYPES:
                 kept.append(res)
                 continue
+
+            # Checksum pass check
+            if etype in CHECKSUM_TYPES:
+                matched_text = text[res.start:res.end]
+                if self._checksum_passes(etype, matched_text):
+                    kept.append(res)
+                    continue
+
+            # Context gate + SLM corroboration
             if self._has_context(text, res, etype):
                 kept.append(res)
             elif slm_results and GlinerPiiEngine.corroborates(
@@ -339,3 +460,15 @@ def build_indian_analyzer(
         slm_engine=slm_engine,
         context_map=context_map,
     )
+
+
+__all__ = [
+    "build_indian_analyzer",
+    "ensure_spacy_model",
+    "GATED_TYPES",
+    "TRUSTED_TYPES",
+    "CHECKSUM_TYPES",
+    "HybridAnalyzerEngine",
+    "DroppedEntity",
+    "build_context_map",
+]

@@ -4,7 +4,7 @@ Provides zero-shot semantic PII extraction 100% offline without external servers
 """
 
 import logging
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Set
 from presidio_analyzer import RecognizerResult
 
 logger = logging.getLogger(__name__)
@@ -12,13 +12,22 @@ logger = logging.getLogger(__name__)
 # Entity types the Local SLM (GLiNER) can corroborate. Pincode/Policy have no
 # GLI zero-shot label, so their regex hits can only be corroborated by a nearby
 # context keyword — never by the SLM.
-SLM_CORROBORATABLE_TYPES = {
+SLM_CORROBORATABLE_TYPES: Set[str] = {
     "INDIAN_ADDRESS",
     "INDIAN_PHONE_NUMBER",
     "INDIAN_AADHAAR",
     "INDIAN_PAN",
     "DATE_OF_BIRTH",
     "PERSON",
+    "TITLE_PERSON_NAME",
+    "INDIAN_PASSPORT_MRZ",
+    "ITR_ACKNOWLEDGEMENT_NUMBER",
+    "INDIAN_DRIVING_LICENSE",
+    "INDIAN_VOTER_ID",
+    "INDIAN_BANK_ACCOUNT",
+    "INDIAN_IFSC",
+    "INDIAN_GSTIN",
+    "INDIAN_VEHICLE_REGISTRATION",
 }
 
 # Target zero-shot labels for Indian PII documents
@@ -31,10 +40,21 @@ SLM_PII_LABELS = [
     "pan card number",
     "personal phone number",
     "date of birth",
+    "passport mrz machine readable zone",
+    "itr acknowledgement number or tax filing token",
+    "driving license number",
+    "voter id or epic number",
+    "passport number",
+    "pincode or postal code",
+    "policy number or customer id",
+    "bank account number",
+    "ifsc code",
+    "gstin or tax identification number",
+    "vehicle registration number",
 ]
 
 # Mapping GLiNER label names to standardized Presidio entity types
-LABEL_TO_ENTITY_TYPE = {
+LABEL_TO_ENTITY_TYPE: Dict[str, str] = {
     "person name": "PERSON",
     "policyholder name": "PERSON",
     "residential address": "INDIAN_ADDRESS",
@@ -43,6 +63,17 @@ LABEL_TO_ENTITY_TYPE = {
     "pan card number": "INDIAN_PAN",
     "personal phone number": "INDIAN_PHONE_NUMBER",
     "date of birth": "DATE_OF_BIRTH",
+    "passport mrz machine readable zone": "INDIAN_PASSPORT_MRZ",
+    "itr acknowledgement number or tax filing token": "ITR_ACKNOWLEDGEMENT_NUMBER",
+    "driving license number": "INDIAN_DRIVING_LICENSE",
+    "voter id or epic number": "INDIAN_VOTER_ID",
+    "passport number": "INDIAN_PASSPORT",
+    "pincode or postal code": "INDIAN_PINCODE",
+    "policy number or customer id": "POLICY_OR_CUSTOMER_ID",
+    "bank account number": "INDIAN_BANK_ACCOUNT",
+    "ifsc code": "INDIAN_IFSC",
+    "gstin or tax identification number": "INDIAN_GSTIN",
+    "vehicle registration number": "INDIAN_VEHICLE_REGISTRATION",
 }
 
 _GLINER_MODEL_CACHE = None
@@ -88,7 +119,7 @@ class GlinerPiiEngine:
         return self.model is not None
 
     @staticmethod
-    def corroborates(slm_results, start: int, end: int, entity_type: str) -> bool:
+    def corroborates(slm_results: List[RecognizerResult], start: int, end: int, entity_type: str) -> bool:
         """
         True if a same-entity_type GLiNER result overlaps [start, end).
 
@@ -146,3 +177,12 @@ class GlinerPiiEngine:
         except Exception as e:
             logger.error(f"Error running GLiNER SLM prediction: {e}")
             return []
+
+
+__all__ = [
+    "GlinerPiiEngine",
+    "load_gliner_model",
+    "SLM_CORROBORATABLE_TYPES",
+    "SLM_PII_LABELS",
+    "LABEL_TO_ENTITY_TYPE",
+]
