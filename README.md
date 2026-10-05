@@ -1,5 +1,11 @@
 # 🔒 Indian PII Scrubber
 
+### ⚡ Quick Example (100% Offline / Zero-Egress)
+```text
+Input:     "Invoice for Rajesh Sharma, PAN: ABCDE1234F, Aadhaar: 2345 6789 0123"
+Sanitized: "Invoice for <PERSON_1>, PAN: <IN_PAN_1>, Aadhaar: <IN_AADHAAR_1>"
+```
+
 > **100% Offline, Air-Gapped, Privacy-First PDF Redaction Engine for Indian Financial & Identity Documents**
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
