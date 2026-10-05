@@ -3,7 +3,7 @@
 ### ⚡ Quick Example (100% Offline / Zero-Egress)
 ```text
 Input:     "Invoice for Rajesh Sharma, PAN: ABCDE1234F, Aadhaar: 2345 6789 0123"
-Sanitized: "Invoice for <PERSON_1>, PAN: <IN_PAN_1>, Aadhaar: <IN_AADHAAR_1>"
+Sanitized: "Invoice for -------------, PAN: ----------, Aadhaar: --------------"
 ```
 
 > **100% Offline, Air-Gapped, Privacy-First PDF Redaction Engine for Indian Financial & Identity Documents**
