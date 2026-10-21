@@ -4,12 +4,12 @@ Deterministic mathematical & structural validators for Indian PII.
 Zero external network dependencies. All validators are pure functions
 implemented from first principles:
 
-- Verhoeff dihecral-group D5 validation for 12-digit Aadhaar.
+- Verhoeff dihedral-group D5 validation for 12-digit Aadhaar.
 - PAN structural validation (entity status code, masked formats).
 - ICAO Doc 9303 passport MRZ line validation (7-3-1 check digits).
-- GSTIN Mod-36 checksum validation (Luhn variant with custom weighting).
+- GSTIN Mod-36 checksum validation (Luhn Mod-36 algorithm).
 - DOB calendar plausibility (rejects invalid dates, future dates).
-- Indian state/union-territory code validation (36 UTs + Bharat Series 'BH').
+- Indian state/union-territory code validation (28 States + 8 UTs + Bharat Series 'BH').
 """
 
 import re
@@ -34,18 +34,16 @@ _VERHOEFF_D = [
     [9, 8, 7, 6, 5, 4, 3, 2, 1, 0],
 ]
 
-# Permutation table
+# Standard Verhoeff permutation table (order 8 permutation)
 _VERHOEFF_P = [
     [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
-    [1, 5, 7, 6, 2, 8, 4, 9, 3, 0],
-    [5, 8, 0, 3, 7, 2, 6, 4, 9, 1],
-    [8, 9, 1, 6, 5, 3, 2, 7, 4, 0],
-    [9, 7, 5, 2, 8, 4, 3, 6, 1, 0],
-    [7, 0, 6, 5, 9, 2, 4, 3, 8, 1],
-    [6, 4, 8, 1, 3, 7, 5, 0, 2, 9],
-    [4, 3, 9, 7, 6, 0, 2, 8, 5, 1],
-    [3, 2, 4, 8, 1, 9, 0, 5, 6, 7],
-    [2, 1, 3, 4, 0, 6, 9, 7, 5, 8],
+    [1, 5, 7, 6, 2, 8, 3, 0, 9, 4],
+    [5, 8, 0, 3, 7, 9, 6, 1, 4, 2],
+    [8, 9, 1, 6, 0, 4, 3, 5, 2, 7],
+    [9, 4, 5, 3, 1, 2, 6, 8, 7, 0],
+    [4, 2, 8, 6, 5, 7, 3, 9, 0, 1],
+    [2, 7, 9, 3, 8, 0, 6, 4, 1, 5],
+    [7, 0, 4, 6, 9, 1, 3, 2, 5, 8],
 ]
 
 # Inverse table
@@ -78,11 +76,10 @@ def validate_verhoeff(number_str: str) -> bool:
     digits = [int(d) for d in digits_str]
 
     # Apply Verhoeff validation (process all digits including check digit)
-    # Iterate from right to left; i is position from right (0-indexed)
+    # Iterate from right to left; i is position from right (0-indexed, mod 8)
     c = 0
     for i, digit in enumerate(reversed(digits)):
-        # Position from right is i (0 for rightmost), P table row = i % 10
-        p_value = _VERHOEFF_P[i % 10][digit]
+        p_value = _VERHOEFF_P[i % 8][digit]
         c = _VERHOEFF_D[c][p_value]
 
     return c == 0
@@ -141,35 +138,30 @@ def validate_pan_structure(pan_str: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# ICAO 9303 Passport MRZ validation
+# ICAO 9303 Passport MRZ validation (TD3 - 2 lines x 44 chars)
 # ---------------------------------------------------------------------------
-
-# Check digit positions for MRZ line 1 (44 chars)
-# Field: Document number (9 chars starting at pos 5), check digit at pos 14
-# Optional data (0-9, at pos 15-23, check digit at pos 24 if present)
-# Composite check digit for line 1 at pos 25-29 (if optional data present) or pos 24-29
-
-# Check digit positions for MRZ line 2 (44 chars)
-# Date of birth (6 digits at pos 0-5), check digit at pos 6
-# Check digit / optional authority (pos 7-9)
-# Composite check digit at pos 10-12 (3 chars, but actually pos 10-31 with 0-2)
 
 _MRZ_LINE_LENGTH = 44
 
 
-def _mrz_check_digit(digits_str: str) -> str:
+def _mrz_check_digit(chars_str: str) -> str:
     """
-    Compute ICAO 9303 check digit for a string of digits.
+    Compute ICAO 9303 check digit for an MRZ field string.
 
-    Weights cycle: 7, 3, 1 for each character.
-    For non-digit characters (filler '<'), treat as 0.
+    Weights cycle: 7, 3, 1 for each character position.
+    Characters:
+      0-9 -> 0-9
+      A-Z -> 10-35 (ord(c) - 55)
+      '<' filler -> 0
     """
     total = 0
     weights = [7, 3, 1]
 
-    for i, ch in enumerate(digits_str):
+    for i, ch in enumerate(chars_str):
         if ch.isdigit():
             val = int(ch)
+        elif ch.isalpha():
+            val = ord(ch.upper()) - 55
         else:
             val = 0  # '<' filler counts as 0
 
@@ -180,20 +172,27 @@ def _mrz_check_digit(digits_str: str) -> str:
 
 def validate_passport_mrz(mrz_line1: str, mrz_line2: str) -> Dict[str, Any]:
     """
-    Validate ICAO Doc 9303 passport MRZ (Machine Readable Zone) two lines.
+    Validate ICAO Doc 9303 passport MRZ (Machine Readable Zone) two lines (TD3 format).
 
-    Each line must be exactly 44 characters. Validates all embedded check digits:
-    - Line 1: Document number check digit, optional data check digit,
-              issuance/expiration date check digit, composite check digit
-    - Line 2: Date of birth check digit, composite check digit
-
-    Args:
-        mrz_line1: First MRZ line (44 chars), typically starting with 'P<IND'
-        mrz_line2: Second MRZ line (44 chars)
-
-    Returns:
-        Dict with validation results, passport number, DOB, expiry date, and
-        whether all check digits pass.
+    Each line must be exactly 44 characters.
+    Per ICAO Doc 9303 Part 4:
+    Line 1:
+      - 0: 'P' (Passport)
+      - 1: type / '<'
+      - 2-4: Issuing country ('IND')
+      - 5-43: Name (Surname<<Given Names)
+    Line 2:
+      - 0-8: Document / Passport number (9 chars)
+      - 9: Check digit over document number (1 char)
+      - 10-12: Nationality ('IND')
+      - 13-18: Date of birth (YYMMDD, 6 digits)
+      - 19: Check digit over date of birth (1 char)
+      - 20: Sex ('M', 'F', '<')
+      - 21-26: Expiry date (YYMMDD, 6 digits)
+      - 27: Check digit over expiry date (1 char)
+      - 28-41: Optional data (14 chars)
+      - 42: Check digit over optional data (1 char) or '<'
+      - 43: Composite check digit (1 char)
     """
     result = {
         "valid": False,
@@ -223,9 +222,9 @@ def validate_passport_mrz(mrz_line1: str, mrz_line2: str) -> Dict[str, Any]:
 
     all_checks_passed = True
 
-    # Document number: positions 5-13 (9 chars), check digit at position 14
-    doc_number_raw = line1[5:14]
-    doc_number_check = line1[14]
+    # Document number: line 2, positions 0-8 (9 chars), check digit at position 9
+    doc_number_raw = line2[0:9]
+    doc_number_check = line2[9]
     doc_number_str = doc_number_raw.replace("<", "")
 
     if doc_number_str:
@@ -235,10 +234,12 @@ def validate_passport_mrz(mrz_line1: str, mrz_line2: str) -> Dict[str, Any]:
             result["passport_number"] = doc_number_str
         else:
             all_checks_passed = False
+    else:
+        all_checks_passed = False
 
-    # Date of birth: positions 0-5 in line 2, check digit at position 6
-    dob_raw = line2[0:6]
-    dob_check = line2[6]
+    # Date of birth: line 2, positions 13-18 (6 digits), check digit at position 19
+    dob_raw = line2[13:19]
+    dob_check = line2[19]
     computed_dob_check = _mrz_check_digit(dob_raw)
 
     if computed_dob_check == dob_check:
@@ -247,11 +248,9 @@ def validate_passport_mrz(mrz_line1: str, mrz_line2: str) -> Dict[str, Any]:
     else:
         all_checks_passed = False
 
-    # Expiry date: positions 7-12 in line 2 (skip check digits at 7... wait)
-    # Line 2: pos 0-5 = DOB, pos 6 = DOB check
-    # pos 7-12 = expiry date, pos 13 = expiry check
-    expiry_raw = line2[7:13]
-    expiry_check = line2[13]
+    # Expiry date: line 2, positions 21-26 (6 digits), check digit at position 27
+    expiry_raw = line2[21:27]
+    expiry_check = line2[27]
     computed_expiry_check = _mrz_check_digit(expiry_raw)
 
     if computed_expiry_check == expiry_check:
@@ -272,25 +271,22 @@ def validate_passport_mrz(mrz_line1: str, mrz_line2: str) -> Dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
-# GSTIN Mod-36 checksum validation
+# GSTIN Mod-36 checksum validation (Luhn Mod-36)
 # ---------------------------------------------------------------------------
+
+_GSTIN_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
 
 def validate_gstin_checksum(gstin_str: str) -> bool:
     """
-    Validate a 15-character GSTIN number using the Luhn Mod-36 checksum.
+    Validate a 15-character GSTIN number using the standard Luhn Mod-36 algorithm.
 
     GSTIN structure:
     - Positions 0-1: 2-digit state code (01-38)
-    - Positions 2-12: 11-char PAN-based identifier + entity code
-    - Position 13: 'Z' (constant for regular taxpayers, 'N' for composition)
-    - Position 14: Mod-36 check digit
-
-    The checksum algorithm:
-    1. Take the first 14 characters.
-    2. Convert each to numeric: 0-9 -> 0-9, A-Z -> 10-35.
-    3. Multiply each by its 1-indexed position from the left (1, 2, 3, ..., 14).
-    4. Sum all products.
-    5. Check digit = (36 - (sum % 36)) % 36, converted back to char.
+    - Positions 2-11: 10-char PAN
+    - Position 12: Entity code (1-9, A-Z)
+    - Position 13: 'Z' by default (or 'N')
+    - Position 14: Luhn Mod-36 check digit
 
     Args:
         gstin_str: 15-character GSTIN string.
@@ -303,8 +299,8 @@ def validate_gstin_checksum(gstin_str: str) -> bool:
     if len(gstin) != 15:
         return False
 
-    # Validate format: 2 digits + 11 alphanumeric + Z or N + 1 check char
-    if not re.match(r"^[0-9]{2}[A-Z0-9]{11}[ZN][A-Z0-9]$", gstin):
+    # Validate standard format: 2 digits + 10-char PAN + 1 alphanumeric entity + Z/N + check digit
+    if not re.match(r"^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z][ZN][0-9A-Z]$", gstin):
         return False
 
     # Validate state code is 01-38
@@ -312,33 +308,14 @@ def validate_gstin_checksum(gstin_str: str) -> bool:
     if state_code < 1 or state_code > 38:
         return False
 
-    # Build the character-to-value mapping for Mod-36
-    # 0-9 -> 0-9, A-Z -> 10-35
-    char_to_val = {}
-    for i in range(10):
-        char_to_val[str(i)] = i
-    for i in range(26):
-        char_to_val[chr(ord('A') + i)] = 10 + i
-
-    # Convert first 14 characters to numerical values
-    values = []
-    for ch in gstin[:14]:
-        if ch not in char_to_val:
-            return False
-        values.append(char_to_val[ch])
-
-    # Apply Mod-36 checksum: multiply each char by (position + 1), sum, mod 36
-    total = 0
-    for i in range(14):
-        total += values[i] * (i + 1)
-
-    check_val = (36 - (total % 36)) % 36
-
-    # Convert back to character
-    val_to_char = {v: k for k, v in char_to_val.items()}
-    computed_check = val_to_char[check_val]
-
-    return computed_check == gstin[14]
+    # Standard Luhn Mod-36 checksum
+    n = len(_GSTIN_ALPHABET)
+    try:
+        values = tuple(_GSTIN_ALPHABET.index(c) for c in reversed(gstin))
+        chk = (sum(values[::2]) + sum(sum(divmod(i * 2, n)) for i in values[1::2])) % n
+        return chk == 0
+    except ValueError:
+        return False
 
 
 # ---------------------------------------------------------------------------
@@ -383,8 +360,8 @@ def validate_dob_date(date_str: str) -> bool:
             "may": 5, "jun": 6, "jul": 7, "aug": 8,
             "sep": 9, "oct": 10, "nov": 11, "dec": 12,
             "january": 1, "february": 2, "march": 3, "april": 4,
-            "june": 5, "july": 6, "august": 7, "september": 8,
-            "october": 9, "november": 10, "december": 11,
+            "may": 5, "june": 6, "july": 7, "august": 8,
+            "september": 9, "october": 10, "november": 11, "december": 12,
         }
 
         month_year_pattern = re.match(
@@ -428,12 +405,12 @@ def validate_dob_date(date_str: str) -> bool:
 
 # All 28 States and 8 Union Territories of India
 _INDIAN_STATE_CODES = {
-    # States
-    "AP", "AR", "AS", "BR", "CG", "GA", "GJ", "HR", "HP", "JK",
-    "JH", "KA", "KL", "LD", "MP", "MH", "MN", "ML", "MZ", "NL",
-    "OR", "PB", "PY", "RJ", "SK", "TN", "TS", "TR", "UP", "UK",
+    # 28 States
+    "AP", "AR", "AS", "BR", "CG", "GA", "GJ", "HR", "HP",
+    "JH", "KA", "KL", "MP", "MH", "MN", "ML", "MZ", "NL",
+    "OD", "OR", "PB", "RJ", "SK", "TN", "TS", "TR", "UP", "UK",
     "WB",
-    # Union Territities
+    # 8 Union Territories
     "AN", "CH", "DH", "DL", "JK", "LA", "LD", "PY",
 }
 
@@ -467,7 +444,7 @@ STATE_NAME_TO_CODE = {
     "Meghalaya": "ML",
     "Mizoram": "MZ",
     "Nagaland": "NL",
-    "Odisha": "OR",
+    "Odisha": "OD",
     "Puducherry": "PY",
     "Punjab": "PB",
     "Rajasthan": "RJ",

@@ -67,10 +67,15 @@ def map_char_spans_to_rects(
             word_spans.append((w_start, w_end, fitz.Rect(w[0], w[1], w[2], w[3])))
             current_pos = w_end
         else:
-            # Fallback search from beginning if not found sequentially
-            idx2 = page_text.find(w_text)
-            if idx2 != -1:
-                word_spans.append((idx2, idx2 + len(w_text), fitz.Rect(w[0], w[1], w[2], w[3])))
+            # Fallback search forward with cleaned punctuation/whitespace (never jump backwards)
+            w_clean = w_text.strip()
+            if w_clean:
+                idx_clean = page_text.find(w_clean, current_pos)
+                if idx_clean != -1:
+                    w_start = idx_clean
+                    w_end = idx_clean + len(w_clean)
+                    word_spans.append((w_start, w_end, fitz.Rect(w[0], w[1], w[2], w[3])))
+                    current_pos = w_end
 
     # For each PII result, find all overlapping word bounding boxes
     for res in results:

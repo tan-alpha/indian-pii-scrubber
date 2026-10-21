@@ -1,211 +1,239 @@
 # 🔒 Indian PII Scrubber
 
-### ⚡ Quick Example (100% Offline / Zero-Egress)
-```text
-Input:     "Invoice for Rajesh Sharma, PAN: ABCDE1234F, Aadhaar: 2345 6789 0123"
-Sanitized: "Invoice for -------------, PAN: ----------, Aadhaar: --------------"
-```
-
 > **100% Offline, Air-Gapped, Privacy-First PDF Redaction Engine for Indian Financial & Identity Documents**
 
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Privacy Guarantee](https://img.shields.io/badge/Privacy-100%25%20Offline%20Air--Gapped-success.svg)](#-100-offline--privacy-first-guarantee)
-[![Tests](https://img.shields.io/badge/Tests-69%20Passed%20(100%25)-brightgreen.svg)](#-running-automated-tests)
-[![Version](https://img.shields.io/badge/Version-v0.3.0%20(Community%20Audit%20Release)-purple.svg)](#-whats-new-in-v030-community-audit-release)
+[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
+[![Tests Passing](https://img.shields.io/badge/Tests-69%20Passed%20(100%25)-success?style=for-the-badge&logo=pytest&logoColor=white)](#tests)
+[![Docker](https://img.shields.io/badge/Docker-Ready%20Air--Gapped-2496ED?style=for-the-badge&logo=docker&logoColor=white)](#quickstart)
+[![Streamlit](https://img.shields.io/badge/GUI-Streamlit-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)](#gui)
+[![Air-Gapped Privacy](https://img.shields.io/badge/Privacy-100%25%20Offline-10B981?style=for-the-badge&logo=shield&logoColor=white)](#privacy)
 
-A high-precision, production-ready Python engine, CLI tool (`cli.py`), and Streamlit Web GUI (`app.py`) built to detect and permanently redact sensitive Indian Personally Identifiable Information (PII) before documents are shared or uploaded to external LLMs / Cloud AI APIs.
+A high-precision, production-grade Python library, CLI utility, and Streamlit web application engineered to detect and permanently redact sensitive Indian Personally Identifiable Information (PII) before documents are shared, archived, or uploaded to Cloud AI models (such as ChatGPT, Claude, or Gemini).
 
-Designed for Indian document formats: **Income Tax Returns (ITR-1 to ITR-7), Form 16, Insurance Policies, Salary Slips, Bank Statements, Aadhaar/PAN Copies, Passports (including MRZ), Driving Licenses, Vehicle RC Books, and Voter IDs**.
-
----
-
-## ✨ What's New in v0.3.0 (Community Audit Release)
-
-Following a comprehensive community audit of Indian PII recognition patterns, **v0.3.0** brings major architectural improvements, mathematical checksum validators, multi-line form support, and new recognizers:
-
-### 🛡️ 1. Deterministic Mathematical Validators (`validators.py`)
-* **Verhoeff Checksum Engine for Aadhaar**: Implements the dihedral group $D_5$ algorithm defined by UIDAI. Validates 12-digit Aadhaar numbers mathematically and eliminates false positives on random invoice/transaction numbers.
-* **PAN 4th-Character Entity Status Validation**: Strictly verifies entity status codes (`[P, C, H, F, A, T, B, L, J, G, K]`), 5th-character alphabet, and masked formats (`XXXXX1234F`).
-* **GSTIN Luhn Mod-36 Checksum**: Verifies the 15-character Goods & Services Tax ID, state codes (01–38), embedded PAN, and Mod-36 check digits.
-* **Passport MRZ Parser (ICAO Doc 9303)**: Validates 44-character 2-line machine-readable zones with 7-3-1 weight cycling.
-* **DOB Calendar Plausibility**: Validates leap years, Gregorian calendars, and eliminates future/implausible dates.
-* **MoRTH State/UT Code Validator**: Validates all 28 states, 8 union territories, and `BH` (Bharat Series).
-
-### 🎯 2. New Document Recognizers & Embedded String Extraction
-* **`INDIAN_PASSPORT_MRZ`**: Redacts and parses 44-character MRZ lines at the bottom of passport scans.
-* **`ITR_ACKNOWLEDGEMENT_NUMBER` & Embedded PAN**: Extracts embedded PANs and 15-digit e-Filing tokens from barcodes/tokens (`ITRV-ABCDE1234F-2023`, `Ack: 123456789012345/ABCDE1234F`).
-* **`INDIAN_DRIVING_LICENSE`**: Supports MoRTH Sarathi format (`SS-RR-YYYYNNNNNNN`) and legacy state formats.
-* **`INDIAN_GSTIN`**: 15-character GST registration with Mod-36 checksum.
-* **`INDIAN_VEHICLE_REGISTRATION`**: State RTO number plates and Bharat Series (`22 BH 1234 AA`).
-* **`INDIAN_BANK_ACCOUNT`**: Dedicated 9–18 digit account numbers with banking context.
-* **`INDIAN_VOTER_ID`**: Modern EPIC + legacy slash-delimited EPIC formats (`ABC/12/345/678901`).
-* **Masked Formats & Landlines**: Supports masked Aadhaar (`XXXX-XXXX-1234`, `•••• •••• 1234`), dot-separated Aadhaar (`9876.5432.1012`), and STD landlines (`(022) 2345 6789`).
-
-### 📑 3. Multi-Line & Form-Aware Context Gate
-* **Preceding Line Headers**: Handles label-on-line-1, value-on-line-2 layouts (`Pincode:\n560001`, `DOB:\n15/08/1990`).
-* **Over-Redaction Elimination**: Moved `DATE_OF_BIRTH` to gated types to protect regular invoice dates, transaction dates, and maturity dates from accidental masking.
-
-### 🧼 4. Frictionless UI with Developer & Diagnostics Mode
-* **Clean 3-Step Main Flow**: Simple **Upload $\rightarrow$ Visual Preview $\rightarrow$ 1-Click Redact** workflow.
-* **Collapsible Diagnostics Expander**: Threshold sliders, system health checks, and 19 fine-grained entity toggles organized inside a `🛠️ Developer & Diagnostics Mode` sidebar expander.
-
-### 🧪 5. Comprehensive Automated Test Suite
-* Expanded test suite from 13 to **69 automated unit & integration tests** covering all edge cases, over-masking regressions, and mathematical validators.
+Engineered specifically for Indian document layouts: **Income Tax Returns (ITR-1 to ITR-7), Form 16, Salary Slips, Bank Statements, Insurance Policies, Aadhaar/PAN cards, Passport scans (including MRZ), Driving Licenses, and Vehicle RC books**.
 
 ---
 
-## 🛡️ 100% Offline & Privacy-First Guarantee
+## 💡 Why This Tool?
 
-Privacy is non-negotiable when handling identity numbers, tax documents, and financial records:
+When sharing financial documents with external AI tools or third-party vendors, redacting sensitive data is critical. Traditional redaction tools suffer from two major flaws:
 
-1. **Zero Outbound Traffic**: All text extraction, OCR, regex matching, and Small Language Model (SLM) zero-shot inference run **100% in local RAM**. No data, text, or metrics ever leave your machine.
-2. **Pre-Packaged Model Weights**: Model weights for spaCy (`en_core_web_lg`) and GLiNER (`gliner_small-v2.1`) download **once** during installation/build into local cache (`~/.cache/`). At runtime, the engine operates completely disconnected from the internet.
-3. **Hardened Offline Docker Environment**: The included `docker-compose.yml` sets `HF_HUB_OFFLINE=1` and `TRANSFORMERS_OFFLINE=1` with pre-baked model weights in the image—guaranteeing air-gapped security at the OS layer.
-4. **Irreversible Vector Blackboxing**: PyMuPDF (`fitz`) draws solid vector blackbox rectangles over PII coordinates while **permanently wiping the underlying text streams and font glyph bytes** from the internal PDF binary data.
+1. **Under-Redaction (Leaking Secrets)**: Standard tools miss Indian names without honorifics, masked numbers (`XXXX-XXXX-1234`), landlines with STD codes, or embedded tax tokens (`ITRV-ABCDE1234F-2023`).
+2. **Over-Redaction (Destroying Documents)**: Primitive keyword or regex tools flag a bank balance like `₹1,50,000` as a pincode, an invoice date like `31/12/2023` as a date of birth, or the phrase `BUILDING CODE compliance` as a home address.
+
+**Indian PII Scrubber** solves both problems with a **Hybrid Engine**:
+* **Deterministic Math Checksums**: Mathematical checks (like UIDAI's Verhoeff algorithm for Aadhaar and Luhn Mod-36 for GSTIN) confirm whether a number is genuine identity data or just an invoice reference.
+* **Smart Context Gatekeeper**: Numbers are only redacted when accompanied by supporting context (e.g. `Pincode: 560001` is redacted, but an account balance of `150000` is kept intact).
+* **Local Zero-Shot AI (GLiNER)**: A lightweight Small Language Model (SLM) running 100% locally in RAM detects bare names and addresses from sentence context without sending a single byte to the internet.
 
 ---
 
-## 🧠 Hybrid Architecture: Context Gate + Local SLM
+<a id="privacy"></a>
+## 🛡️ 100% Offline & Air-Gapped Privacy Guarantee
 
-Traditional regex rules and standard spaCy NER lack deep semantic context. They routinely cause **over-redaction** (flagging `$150,000` or `Sum Assured` as a pincode/policy ID) or **under-redaction** (missing bare, un-prefixed person names or embedded strings).
+Your data privacy is guaranteed at the hardware and networking level:
 
-Our **Hybrid Presidio + Local GLiNER SLM + Mathematical Validation** architecture solves both:
+* 🔌 **Zero Network Requests**: Once initial model weights are downloaded, all OCR, text parsing, regex matching, and AI inference execute strictly on your local CPU/GPU in RAM.
+* 📦 **Pre-Baked Docker Image**: The Docker container sets `HF_HUB_OFFLINE=1` and `TRANSFORMERS_OFFLINE=1` with all model weights pre-installed. You can disconnect your Wi-Fi entirely and the tool runs seamlessly.
+* 🪓 **Permanent Vector Erasure (Not a Black Sticker)**: In many basic viewers, black boxes are simply drawing layers placed over the text — meaning anyone can copy-paste the hidden text underneath. This engine uses PyMuPDF (`fitz`) to **permanently sanitize the binary text stream and font glyphs** underneath the black box. The data ceases to exist in the resulting PDF.
 
+---
+
+## 🎯 Target Indian PII Matrix (19 Supported Types)
+
+| Category | Entity Type | How It Works | Examples Handled |
+| :--- | :--- | :--- | :--- |
+| **Tax & ID** | **PAN Card** | 10-char regex + 4th-char CBDT status code validation | `ABCPE1234F`, `XXXXX1234F`, `*****1234F` |
+| **Identity** | **Aadhaar (UID)** | 12-digit regex + **UIDAI Verhoeff (D5) checksum** | `9876 5432 1012`, `XXXX-XXXX-1234`, `9876.5432.1012` |
+| **Identity** | **Passport Number** | Regular, diplomatic (`D`), and official (`S`) series | `A1234567`, `D12345678`, `S12345678` |
+| **Identity** | **Passport MRZ** | ICAO Doc 9303 TD3 44-character 2-line parser & check digits | Bottom MRZ lines of passport scans (`P<IND...`) |
+| **Identity** | **Voter ID (EPIC)** | Modern 10-char alphanumeric + legacy slash-delimited formats | `ABC1234567`, `ABC/12/345/678901` |
+| **Identity** | **Driving License** | MoRTH Sarathi format + state RTO legacy formats | `DL-01-2010-1234567`, `MH12 20190001234` |
+| **Personal** | **Person Names** | **Local SLM (GLiNER)** + spaCy NER + Indian honorifics | `Shri RAJESH KUMAR`, `Late Atal Bihari Vajpayee`, `Amitabh Bachchan` |
+| **Personal** | **Home Addresses** | Local SLM + contextual address keywords & locality tokens | Flat/House numbers, Marg, Nagar, Sector, Enclave, Society |
+| **Personal** | **Date of Birth** | Multi-format date regex + calendar plausibility + birth gate | `15/08/1990`, `15 Aug 1990` (Protects invoice dates) |
+| **Contact** | **Phone / Landline** | Mobile (starts 6–9), STD landlines, and extension numbers | `+91 9876543210`, `(022) 2345 6789`, `ext 102` |
+| **Contact** | **Email Address** | Standard RFC 5322 regex parser | `name@company.com`, `user.name+tag@domain.co.in` |
+| **Banking** | **Bank Account** | 9–18 digit account numbers with banking context gating | `A/C No: 123456789012`, `Savings Account: 98765432101` |
+| **Banking** | **Bank IFSC Code** | 11-character RBI bank branch identification code | `SBIN0001234`, `HDFC0000123` |
+| **Taxation** | **ITR Acknowledgement** | 15-digit e-Filing tokens and embedded composite barcodes | `ITRV-ABCPE1234F-2023`, `Ack: 123456789012345/ABCPE1234F` |
+| **Taxation** | **GSTIN (GST Number)** | 15-char GSTIN with **CBIC Luhn Mod-36 checksum** | `27AAPFU0939F1ZV`, `29AAACI4916L1ZH` |
+| **Vehicle** | **Vehicle Registration** | State RTO number plates and Bharat Series (`BH`) | `MH 12 AB 1234`, `22 BH 1234 AA` |
+| **Location** | **Indian Pincode** | 6-digit postal code with proximity context requirement | `Pincode: 560001` (Leaves amounts like `₹150000` safe) |
+| **Insurance** | **Policy / Customer ID** | 8–16 digit identifier with strict proximity context gate | `Policy No: 123456789012` |
+
+---
+
+## ⚙️ Recommended Settings by Document Type
+
+| Document Type | Recommended Confidence | Recommended Toggles | Why? |
+| :--- | :---: | :--- | :--- |
+| **Income Tax Return (ITR / Form 16)** | `0.50` (Default) | All enabled | Catches PAN, salary figures contextually, bank details, and ITR-V tokens. |
+| **Bank Account Statements** | `0.55` | Enable `INDIAN_BANK_ACCOUNT`, `INDIAN_IFSC`, `PERSON` | Ensures balance amounts aren't touched while account numbers & IFSC are scrubbed. |
+| **Salary Slips / Payslips** | `0.50` | Enable `INDIAN_PAN`, `PERSON`, `INDIAN_BANK_ACCOUNT` | Redacts employee name, bank account, and PAN while leaving salary components legible. |
+| **Insurance Policies** | `0.50` | Enable `POLICY_OR_CUSTOMER_ID`, `PERSON`, `DATE_OF_BIRTH` | Protects customer ID and policyholder while keeping Sum Assured visible. |
+| **KYC Identity Cards (Aadhaar / PAN)** | `0.45` | Enable `INDIAN_AADHAAR`, `INDIAN_PAN`, `DATE_OF_BIRTH` | Catches masked/unmasked numbers and DOB with mathematical checksum validation. |
+| **Scanned Paper / Phone Camera PDFs** | `0.45` | Check `Force OCR on all pages` | Runs Tesseract OCR to extract text from images before running the redaction pipeline. |
+
+---
+
+<a id="quickstart"></a>
+## 🚀 Quick Start
+
+### Option A: Docker (Recommended — Instant & 100% Air-Gapped)
+
+The fastest and most isolated way to run the scrubber without worrying about system dependencies:
+
+```bash
+# 1. Clone repository
+git clone https://github.com/tanalpha/indian-pii-scrubber.git
+cd indian-pii-scrubber
+
+# 2. Build and launch container
+docker compose up -d
+
+# 3. Open Web GUI in browser
+# Navigate to: http://localhost:8501
 ```
+
+---
+
+### Option B: Local Python Installation
+
+#### 1. Setup Virtual Environment
+```bash
+# Using Conda / Miniforge
+conda create -n gen-ai python=3.10 -y
+conda activate gen-ai
+
+# Or using standard venv
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+```
+
+#### 2. Install Dependencies & Pre-Download Models
+```bash
+pip install -r requirements.txt
+python -m spacy download en_core_web_lg
+```
+
+#### 3. Install Tesseract OCR (Optional — only needed for scanned PDFs)
+* **Ubuntu / Debian / WSL2**: `sudo apt update && sudo apt install -y tesseract-ocr tesseract-ocr-eng`
+* **macOS**: `brew install tesseract`
+* **Windows**: Download installer from [UB-Mannheim Tesseract Wiki](https://github.com/UB-Mannheim/tesseract/wiki) and add to system `PATH`.
+
+---
+
+## 💻 How to Use
+
+<a id="gui"></a>
+### 1. Interactive Web Application (`app.py`)
+
+Launch the Streamlit web interface:
+
+```bash
+streamlit run app.py
+```
+
+* **Step 1: Upload Document**: Drag and drop any Indian PDF file.
+* **Step 2: Live Visual Preview**: Inspect red highlight overlays indicating detected PII boundaries before committing.
+* **Step 3: 1-Click Redact & Download**: Click "✂️ Redact & Generate Sanitized PDF" to download a permanently scrubbed document.
+* **Developer & Diagnostics Expander**: Tucked in the sidebar to review system readiness, tweak thresholds, or inspect false positives saved by the Context Gate.
+
+---
+
+### 2. Command Line Interface (`cli.py`)
+
+Batch process files or integrate directly into automated backend pipelines:
+
+```bash
+# Redact a single PDF (outputs to <name>_redacted.pdf)
+python cli.py sample_itr.pdf -o sanitized_itr.pdf
+
+# Redact an entire folder of PDFs in batch
+python cli.py ./raw_invoices/ -o ./sanitized_invoices/
+
+# Force OCR on low-quality scanned documents
+python cli.py scanned_document.pdf --force-ocr
+
+# Adjust confidence threshold (e.g. strict 0.60)
+python cli.py statement.pdf -t 0.60
+
+# Select specific entity types to redact
+python cli.py salary_slip.pdf -e INDIAN_PAN PERSON INDIAN_BANK_ACCOUNT
+```
+
+---
+
+<a id="tests"></a>
+## 🧪 Automated Testing
+
+The codebase includes an extensive automated test suite covering checksum algorithms, proximity context gates, multi-line headers, and edge-case protection:
+
+```bash
+PYTHONPATH=. pytest tests/ -v
+```
+
+```text
+======================== 69 passed, 1 warning in 23.96s ========================
+```
+
+---
+
+## 🏗️ Architecture Overview
+
+```text
 ┌────────────────────────────────────────────────────────────────────────┐
-│                        1. Extraction Layer                             │
-│       Native PyMuPDF Text Stream  OR  Offline Tesseract C++ OCR        │
+│                        1. Document Ingestion                           │
+│       Native PyMuPDF Text Stream   OR   Offline Tesseract C++ OCR      │
 └───────────────────────────────────┬────────────────────────────────────┘
-                                    │ (Raw Text + Page Bounding Boxes)
+                                    │ (Character Coordinates + Spans)
                                     ▼
 ┌────────────────────────────────────────────────────────────────────────┐
-│                    2. Hybrid Detection & Validation                    │
+│                    2. Hybrid Detection Pipeline                        │
 │                                                                        │
 │   ┌───────────────────────────────┐  ┌─────────────────────────────┐   │
-│   │   Custom Presidio Regexes     │  │   Local GLiNER SLM Engine   │   │
-│   │ (PAN, Aadhaar, Passport, etc) │  │  (Zero-Shot Contextual NER) │   │
+│   │   Custom Presidio Recognizers │  │   Local GLiNER SLM Engine   │   │
+│   │  (PAN, Aadhaar, Passport, DL) │  │ (Zero-Shot Contextual NER)  │   │
 │   └───────────────┬───────────────┘  └──────────────┬──────────────┘   │
 │                   │                                 │                  │
 │                   └────────────────┬────────────────┘                  │
 │                                    ▼                                   │
 │            ┌───────────────────────────────────────────────┐           │
 │            │          3. Mathematical Validators           │           │
-│            │  Verhoeff, PAN Status, GSTIN Mod-36, MRZ      │           │
+│            │   Verhoeff (D5), PAN Status, GSTIN Mod-36,    │           │
+│            │   ICAO 9303 MRZ, DOB Calendar Plausibility    │           │
 │            └───────────────────────┬───────────────────────┘           │
 │                                    ▼                                   │
 │            ┌───────────────────────────────────────────────┐           │
-│            │       4. Multi-Line Context Gate (±1 Line)    │           │
-│            │  Drops noisy hits lacking context or SLM      │           │
-│            │    corroboration (No Over-Redaction)          │           │
+│            │     4. Proximity Context Gate (±1 Line)       │           │
+│            │   Suppresses uncontextualized noise & saves   │           │
+│            │   amounts / dates from over-redaction         │           │
 │            └───────────────────────┬───────────────────────┘           │
 └────────────────────────────────────┼───────────────────────────────────┘
-                                     │ (Filtered PII Spans)
+                                     │ (Sanitized Bounding Box Spans)
                                      ▼
 ┌────────────────────────────────────────────────────────────────────────┐
-│                     5. Spatial Mapping & Vector Wiping                 │
+│                     5. Binary Vector Redaction                         │
 │         PyMuPDF Coordinate Matching & Permanent Stream Erasure         │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 🎯 Target Documents & PII Detection Matrix
+## 🤝 Contributing
 
-| Category | Entity Type | Detection Mechanism | Example Match / Context Rule |
-| :--- | :--- | :--- | :--- |
-| **Identity** | **PAN Card** | 10-char Regex + Status Validation | `ABCPE1234F`, `XXXXX1234F` (`PAN`, `Taxpayer`) |
-| **Identity** | **Aadhaar (UID)** | 12-digit UID + **Verhoeff Checksum** | `9876 5432 1012`, `XXXX-XXXX-1234`, `9876.5432.1012` |
-| **Identity** | **Passport Number** | Regular, Diplomatic, Official Regex | `A1234567`, `D12345678` (`Passport No`) |
-| **Identity** | **Passport MRZ** | ICAO 9303 2-Line 44-char Parser | `P<INDKUMAR<<RAJESH...`, `A1234567<8IND9008154...` |
-| **Identity** | **Voter ID (EPIC)** | Modern (10-char) + Legacy Regex | `ABC1234567`, `ABC/12/345/678901` (`Voter ID`) |
-| **Identity** | **Driving License** | MoRTH Sarathi + Legacy State Regex | `DL-01-2010-1234567`, `MH12 20190001234` |
-| **Personal** | **Person Names** | **Local SLM (GLiNER)** + spaCy NER | `Shri RAJESH KUMAR`, `Late Atal Bihari Vajpayee`, `M. Srinivasan` |
-| **Personal** | **Home Addresses** | **Local SLM (GLiNER)** + Context Gate | Contextual street address lines & localities |
-| **Personal** | **Date of Birth** | Multi-format Date + Calendar Check | `15/08/1990`, `15 Aug 1990` (Strictly context-gated) |
-| **Contact** | **Phone / Landline** | Mobile (10-digit) + Landline STD + Ext | `+91 9876543210`, `(022) 2345 6789`, `ext 102` |
-| **Contact** | **Email Address** | Standard RFC Email Regex | `user@domain.com` (`Email`) |
-| **Financial** | **Bank Account** | 9–18 digit Pattern + Context Gate | `A/C No: 123456789012` (`Account Number`, `SB A/C`) |
-| **Financial** | **IFSC Code** | 11-char Bank Branch Regex | `SBIN0001234` (`IFSC`, `Branch`) |
-| **Financial** | **ITR Acknowledgement** | 15-digit Ack + Composite Tokens | `ITRV-ABCPE1234F-2023`, `Ack: 123456789012345/ABCPE1234F` |
-| **Financial** | **Policy / Cust ID** | Pattern + Proximity Context Gate | Mandatory `"Policy No:"` / `"Customer ID:"` context |
-| **Commercial** | **GSTIN / Tax ID** | 15-char Pattern + **Mod-36 Checksum** | `27AAECC5491G1Z4` (`GSTIN`, `GST No`) |
-| **Transport** | **Vehicle Registration** | State RTO + Bharat Series (`BH`) | `MH 12 AB 1234`, `22 BH 1234 AA` (`RC No`, `Vehicle`) |
-| **Location** | **Indian Pincode** | 6-digit Pattern + Proximity Gate | Mandatory `"Pincode:"` / `"PIN:"` context (`560001`) |
+Contributions from the community are warmly welcomed! Whether you want to add support for new regional document formats, refine context keywords, or optimize OCR performance:
 
----
-
-## 🚀 Quick Start & Installation
-
-### Option A: Air-Gapped Docker Setup (Recommended)
-
-1. **Build & Run Container**:
-   ```bash
-   docker compose up -d
-   ```
-2. **Access Web GUI**: Open **`http://localhost:8501`** in your browser. All AI models (`en_core_web_lg` and `gliner_small-v2.1`) are pre-baked into the image and set to offline execution mode.
-
----
-
-### Option B: Local Python Setup
-
-1. **Activate Environment & Install Dependencies**:
-   ```bash
-   conda activate gen-ai
-   pip install -r requirements.txt
-   ```
-
-2. **Download spaCy Language Model**:
-   ```bash
-   python -m spacy download en_core_web_lg
-   ```
-
-3. **Install Tesseract OCR (Optional - for scanned image PDFs)**:
-   * **Ubuntu / WSL2**: `sudo apt update && sudo apt install -y tesseract-ocr`
-   * **macOS**: `brew install tesseract`
-   * **Windows**: Install from [UB-Mannheim Tesseract Wiki](https://github.com/UB-Mannheim/tesseract/wiki) and add to system `PATH`.
-
----
-
-## 💻 Running the Application
-
-### 1. Launch Interactive Web GUI (`app.py`)
-
-```bash
-python -m streamlit run app.py
-```
-
-* **Clean 3-Step Experience**: Upload PDF $\rightarrow$ Inspect live visual red highlight boxes $\rightarrow$ 1-Click Redact & Download.
-* **Developer & Diagnostics Mode**: Expand the sidebar drawer to inspect system diagnostics (spaCy, GLiNER, Tesseract), tweak confidence sliders, toggle granular entities, or view suppressed false positives.
-
-### 2. Command Line Interface (`cli.py`)
-
-```bash
-# Redact a single PDF (all 19 standard Indian PII types enabled by default)
-python cli.py sample_itr.pdf -o sanitized_itr.pdf
-
-# Redact an entire folder of PDFs in batch
-python cli.py /path/to/pdf_folder -o /path/to/output_folder
-
-# Force Tesseract OCR on scanned image PDFs
-python cli.py scanned_policy.pdf -o sanitized_policy.pdf --force-ocr
-
-# Run with custom confidence threshold (e.g. 0.60)
-python cli.py document.pdf -t 0.60
-```
-
----
-
-## 🧪 Running Automated Tests
-
-Run the comprehensive unit and integration test suite (69 tests) to verify checksum validators, context-gating, SLM corroboration, and edge-case protection:
-
-```bash
-PYTHONPATH=. pytest tests/test_scrubber.py -v
-```
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'feat: Add support for X'`)
+4. Push to the Branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
 ---
 
 ## 📄 License
 
-Distributed under the [MIT License](LICENSE).
+Distributed under the [MIT License](LICENSE). Free for academic, personal, and commercial use.

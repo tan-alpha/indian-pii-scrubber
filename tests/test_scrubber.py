@@ -44,60 +44,37 @@ from scrubber.validators import (
 # ---------------------------------------------------------------------------
 
 class TestVerhoeffValidator:
-    """Test the Verhoeff dihecral-group D5 checksum validator for Aadhaar."""
+    """Test the Verhoeff dihedral-group D5 checksum validator for Aadhaar."""
 
     def test_valid_aadhaar_passes_verhoeff(self):
-        # Use a known valid Aadhaar with correct Verhoeff check digit
-        # 9876-5432-1012 -> actual Verhoeff check digit depends on first 11 digits
-        # Let's compute with a valid example
-        # 4234 5678 9012 has check digit 2 if valid
-        # Let's test with a number we verify passes
-        valid_aadhaar = "23456789012"  # This should pass Verhoeff for appropriate digits
-        # Actually, let's test the function with a known-valid construction
-        # Generate: take first 11 digits, compute check digit
-        # For testing purposes, we'll verify the algorithm works correctly
-        # by testing an invalid number
+        # Standard UIDAI test Aadhaar 999999990019
+        assert validate_verhoeff("999999990019") is True
         invalid = "123456789012"  # Won't pass Verhoeff
         assert validate_verhoeff(invalid) is False
 
     def test_valid_12_digit_aadhaar_with_checksum(self):
-        """Test with a constructed valid Aadhaar number."""
-        # Compute Verhoeff check digit for first 11 digits
-        # The check digit is computed using permutation rows 1,2,3,... (not 0)
-        # because position 0 (rightmost) is reserved for the check digit itself
-        digits = [2, 3, 4, 5, 6, 7, 8, 9, 0, 0, 0]
-        d_table = [
-            [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
-            [1, 2, 3, 4, 0, 6, 7, 8, 9, 5],
-            [2, 3, 4, 0, 1, 7, 8, 9, 5, 6],
-            [3, 4, 0, 1, 2, 8, 9, 5, 6, 7],
-            [4, 0, 1, 2, 3, 9, 5, 6, 7, 8],
-            [5, 9, 8, 7, 6, 0, 4, 3, 2, 1],
-            [6, 5, 9, 8, 7, 1, 0, 4, 3, 2],
-            [7, 6, 5, 9, 8, 2, 1, 0, 4, 3],
-            [8, 7, 6, 5, 9, 3, 2, 1, 0, 4],
-            [9, 8, 7, 6, 5, 4, 3, 2, 1, 0],
-        ]
-        p_table = [
-            [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
-            [1, 5, 7, 6, 2, 8, 4, 9, 3, 0],
-            [5, 8, 0, 3, 7, 2, 6, 4, 9, 1],
-            [8, 9, 1, 6, 5, 3, 2, 7, 4, 0],
-            [9, 7, 5, 2, 8, 4, 3, 6, 1, 0],
-            [7, 0, 6, 5, 9, 2, 4, 3, 8, 1],
-            [6, 4, 8, 1, 3, 7, 5, 0, 2, 9],
-            [4, 3, 9, 7, 6, 0, 2, 8, 5, 1],
-            [3, 2, 4, 8, 1, 9, 0, 5, 6, 7],
-            [2, 1, 3, 4, 0, 6, 9, 7, 5, 8],
-        ]
-        # Compute with position offset: rightmost of 11 digits is at position 1
-        c = 0
-        for i, digit in enumerate(reversed(digits)):
-            p_val = p_table[(i + 1) % 10][digit]
-            c = d_table[c][p_val]
-        check_digit = [0, 4, 3, 2, 1, 5, 6, 7, 8, 9][c]
-        valid_number = "".join(str(d) for d in digits) + str(check_digit)
-        assert validate_verhoeff(valid_number) is True
+        """Test with known valid Aadhaar numbers."""
+        assert validate_verhoeff("999999990019") is True
+        assert validate_verhoeff("9999 9999 0019") is True
+        assert validate_verhoeff("9999-9999-0019") is True
+
+    def test_invalid_checksum_fails(self):
+        assert validate_verhoeff("999999990018") is False  # Wrong check digit
+
+    def test_wrong_length_fails(self):
+        assert validate_verhoeff("12345") is False
+        assert validate_verhoeff("1234567890123") is False
+
+    def test_starts_with_zero_or_one_fails(self):
+        assert validate_verhoeff("012345678901") is False
+        assert validate_verhoeff("112345678901") is False
+
+    def test_strips_separators(self):
+        # Strips separators and validates
+        assert validate_verhoeff("9999 9999 0019") is True
+        assert validate_verhoeff("9999-9999-0019") is True
+        assert validate_verhoeff("9999.9999.0019") is True
+        assert validate_verhoeff("9999 9999 0018") is False
 
     def test_invalid_checksum_fails(self):
         assert validate_verhoeff("987654321093") is False  # Wrong check digit (2 -> 3)
@@ -111,8 +88,11 @@ class TestVerhoeffValidator:
         assert validate_verhoeff("112345678901") is False
 
     def test_strips_separators(self):
-        # With separators that produce invalid checksum
-        assert validate_verhoeff("9999 9999 9999") is False
+        # Strips separators and validates
+        assert validate_verhoeff("9999 9999 0019") is True
+        assert validate_verhoeff("9999-9999-0019") is True
+        assert validate_verhoeff("9999.9999.0019") is True
+        assert validate_verhoeff("9999 9999 0018") is False
 
 
 class TestPanValidator:
@@ -144,18 +124,17 @@ class TestGstinValidator:
     """Test GSTIN Mod-36 checksum validation."""
 
     def test_valid_gstin_passes(self):
-        # Construct a valid GSTIN with properly computed Mod-36 check digit
-        # Partial: 27AAECC5491G1Z (14 chars), check digit computed = 4
-        valid_gstin = "27AAECC5491G1Z4"
+        # 27AAPFU0939F1ZV is a valid Maharashtra GSTIN (Luhn Mod-36 check digit V)
+        valid_gstin = "27AAPFU0939F1ZV"
         assert validate_gstin_checksum(valid_gstin) is True
 
     def test_wrong_check_digit_fails(self):
-        # Same format but wrong check digit
-        assert validate_gstin_checksum("27AAECC5491G1Z0") is False
+        # Same format but wrong check digit (O instead of V)
+        assert validate_gstin_checksum("27AAPFU0939F1ZO") is False
 
     def test_format_only_is_not_enough(self):
-        """Format check passes but checksum fails for random data."""
-        assert validate_gstin_checksum("27AAECC5491G1Z9") is False
+        """Format check passes but checksum fails for random check digit."""
+        assert validate_gstin_checksum("27AAPFU0939F1Z0") is False
 
     def test_wrong_length_fails(self):
         assert validate_gstin_checksum("27ABCDE") is False
@@ -169,34 +148,31 @@ class TestPassportMrzValidator:
     """Test ICAO 9303 passport MRZ validation."""
 
     def test_valid_mrz_passes(self):
-        # Construct a valid ICAO 9303 MRZ with correct check digits
-        line1 = "P<INDABCDEF12345<<<<<<<<<<<<<"
-        line2 = "8508239C1012345<<<<<<<<<<<<<<"
-        # Note: These are test values; check digit correctness depends on
-        # the ICAO algorithm. We verify the function runs and returns proper structure.
+        # Standard TD3 44-character line 1 & line 2 MRZ block
+        line1 = "P<INDKUMAR<<RAJESH<<<<<<<<<<<<<<<<<<<<<<<<<<"
+        line2 = "A1234567<6IND9008157M2812313<<<<<<<<<<<<<<<<"
         result = validate_passport_mrz(line1, line2)
         assert isinstance(result, dict)
-        assert "valid" in result
-        assert "passport_number" in result
-        assert "date_of_birth" in result
+        assert result["valid"] is True
+        assert result["passport_number"] == "A1234567"
+        assert result["date_of_birth"] == "900815"
+        assert result["expiry_date"] == "281231"
 
     def test_wrong_length_fails(self):
         line1 = "P<INDA"  # Too short
-        line2 = "8508239C1012345<<<<<<<<<<<<"
+        line2 = "A1234567<8IND9008154M2812318<<<<<<<<<<<<<<<4"
         result = validate_passport_mrz(line1, line2)
         assert result["valid"] is False
 
     def test_non_passport_mrz_fails(self):
-        line1 = "A<INDA..."  # Not a passport (doesn't start with P<)
-        line2 = "8508239C1012345<<<<<<<<<<<<<"
-        line1_full = "A<INDABCDEF12345<<<<<<<<<<<"
-        line2_full = "8508239C1012345<<<<<<<<<<<"
+        line1_full = "A<INDKUMAR<<RAJESH<<<<<<<<<<<<<<<<<<<<<<<<<<"
+        line2_full = "A1234567<8IND9008154M2812318<<<<<<<<<<<<<<<4"
         result = validate_passport_mrz(line1_full, line2_full)
         assert result["valid"] is False
 
     def test_non_indian_mrz_fails(self):
-        line1 = "P<USABF12345<<<<<<<<<<<<<<<"
-        line2 = "8508239C1012345<<<<<<<<<<<"
+        line1 = "P<USAKUMAR<<RAJESH<<<<<<<<<<<<<<<<<<<<<<<<<<"
+        line2 = "A1234567<8USA9008154M2812318<<<<<<<<<<<<<<<4"
         result = validate_passport_mrz(line1, line2)
         assert "IND" not in line1[1:6]
         assert result["valid"] is False
@@ -227,6 +203,8 @@ class TestDobDateValidator:
     def test_valid_month_name_date(self):
         assert validate_dob_date("15 Aug 1990") is True
         assert validate_dob_date("25 December 1985") is True
+        assert validate_dob_date("10 June 1995") is True
+        assert validate_dob_date("15 August 2000") is True
 
     def test_invalid_month_name_fails(self):
         assert validate_dob_date("15 Xyz 1990") is False
@@ -241,7 +219,7 @@ class TestStateCodeValidator:
     """Test Indian state code validation."""
 
     def test_valid_states(self):
-        for code in ["DL", "MH", "KA", "TN", "UP", "BR", "WB"]:
+        for code in ["DL", "MH", "KA", "TN", "UP", "BR", "WB", "OD", "OR"]:
             assert validate_state_code(code) is True
 
     def test_valid_ut_codes(self):

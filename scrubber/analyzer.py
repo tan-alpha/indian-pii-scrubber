@@ -204,12 +204,9 @@ class HybridAnalyzerEngine:
 
         # Rule 2: Preceding-line key-value header
         if line_start > 0:
-            preceding_line_start = text.rfind("\n", 0, line_start - 1) + 1
-            preceding_line_end = text.rfind("\n", 0, line_start - 1)
-            if preceding_line_end == -1:
-                preceding_line_end = text[:line_start - 1].rfind("\n")
-                if preceding_line_end == -1:
-                    preceding_line_end = line_start - 1
+            preceding_line_end = line_start - 1
+            prev_nl = text.rfind("\n", 0, preceding_line_end)
+            preceding_line_start = 0 if prev_nl == -1 else prev_nl + 1
             preceding_line = text[preceding_line_start:preceding_line_end].rstrip()
 
             if self._is_key_value_header(preceding_line, entity_type, keywords):
