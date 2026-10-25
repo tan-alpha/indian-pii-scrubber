@@ -1,13 +1,13 @@
-# 🔒 Indian PII Scrubber
+# Indian PII Scrubber
 
 > **100% Offline, Air-Gapped, Privacy-First PDF Redaction Engine for Indian Financial & Identity Documents**
 
-[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
-[![Tests Passing](https://img.shields.io/badge/Tests-69%20Passed%20(100%25)-success?style=for-the-badge&logo=pytest&logoColor=white)](#tests)
-[![Docker](https://img.shields.io/badge/Docker-Ready%20Air--Gapped-2496ED?style=for-the-badge&logo=docker&logoColor=white)](#quickstart)
-[![Streamlit](https://img.shields.io/badge/GUI-Streamlit-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)](#gui)
-[![Air-Gapped Privacy](https://img.shields.io/badge/Privacy-100%25%20Offline-10B981?style=for-the-badge&logo=shield&logoColor=white)](#privacy)
+[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB.svg?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
+[![Tests Passing](https://img.shields.io/badge/Tests-69%20Passed%20(100%25)-success.svg?style=flat-square&logo=pytest&logoColor=white)](#tests)
+[![Docker](https://img.shields.io/badge/Docker-Ready%20Air--Gapped-2496ED.svg?style=flat-square&logo=docker&logoColor=white)](#quickstart)
+[![Streamlit](https://img.shields.io/badge/GUI-Streamlit-FF4B4B.svg?style=flat-square&logo=streamlit&logoColor=white)](#gui)
+[![Air-Gapped Privacy](https://img.shields.io/badge/Privacy-100%25%20Offline-10B981.svg?style=flat-square&logo=shield&logoColor=white)](#privacy)
 
 A high-precision, production-grade Python library, CLI utility, and Streamlit web application engineered to detect and permanently redact sensitive Indian Personally Identifiable Information (PII) before documents are shared, archived, or uploaded to Cloud AI models (such as ChatGPT, Claude, or Gemini).
 
@@ -15,7 +15,7 @@ Engineered specifically for Indian document layouts: **Income Tax Returns (ITR-1
 
 ---
 
-## 💡 Why This Tool?
+## Why This Tool?
 
 When sharing financial documents with external AI tools or third-party vendors, redacting sensitive data is critical. Traditional redaction tools suffer from two major flaws:
 
@@ -30,17 +30,17 @@ When sharing financial documents with external AI tools or third-party vendors, 
 ---
 
 <a id="privacy"></a>
-## 🛡️ 100% Offline & Air-Gapped Privacy Guarantee
+## 100% Offline & Air-Gapped Privacy Guarantee
 
 Your data privacy is guaranteed at the hardware and networking level:
 
-* 🔌 **Zero Network Requests**: Once initial model weights are downloaded, all OCR, text parsing, regex matching, and AI inference execute strictly on your local CPU/GPU in RAM.
-* 📦 **Pre-Baked Docker Image**: The Docker container sets `HF_HUB_OFFLINE=1` and `TRANSFORMERS_OFFLINE=1` with all model weights pre-installed. You can disconnect your Wi-Fi entirely and the tool runs seamlessly.
-* 🪓 **Permanent Vector Erasure (Not a Black Sticker)**: In many basic viewers, black boxes are simply drawing layers placed over the text — meaning anyone can copy-paste the hidden text underneath. This engine uses PyMuPDF (`fitz`) to **permanently sanitize the binary text stream and font glyphs** underneath the black box. The data ceases to exist in the resulting PDF.
+* **Zero Network Requests**: Once initial model weights are downloaded, all OCR, text parsing, regex matching, and AI inference execute strictly on your local CPU/GPU in RAM.
+* **Pre-Baked Docker Image**: The Docker container sets `HF_HUB_OFFLINE=1` and `TRANSFORMERS_OFFLINE=1` with all model weights pre-installed. You can disconnect your Wi-Fi entirely and the tool runs seamlessly.
+* **Permanent Vector Erasure (Not a Black Box Sticker)**: In many basic viewers, black boxes are simply drawing layers placed over the text — meaning anyone can copy-paste the hidden text underneath. This engine uses PyMuPDF (`fitz`) to **permanently sanitize the binary text stream and font glyphs** underneath the black box. The data ceases to exist in the resulting PDF.
 
 ---
 
-## 🎯 Target Indian PII Matrix (19 Supported Types)
+## Target Indian PII Matrix (19 Supported Types)
 
 | Category | Entity Type | How It Works | Examples Handled |
 | :--- | :--- | :--- | :--- |
@@ -65,7 +65,7 @@ Your data privacy is guaranteed at the hardware and networking level:
 
 ---
 
-## ⚙️ Recommended Settings by Document Type
+## Recommended Settings by Document Type
 
 | Document Type | Recommended Confidence | Recommended Toggles | Why? |
 | :--- | :---: | :--- | :--- |
@@ -79,7 +79,7 @@ Your data privacy is guaranteed at the hardware and networking level:
 ---
 
 <a id="quickstart"></a>
-## 🚀 Quick Start
+## Quick Start
 
 ### Option A: Docker (Recommended — Instant & 100% Air-Gapped)
 
@@ -125,7 +125,7 @@ python -m spacy download en_core_web_lg
 
 ---
 
-## 💻 How to Use
+## How to Use
 
 <a id="gui"></a>
 ### 1. Interactive Web Application (`app.py`)
@@ -138,7 +138,7 @@ streamlit run app.py
 
 * **Step 1: Upload Document**: Drag and drop any Indian PDF file.
 * **Step 2: Live Visual Preview**: Inspect red highlight overlays indicating detected PII boundaries before committing.
-* **Step 3: 1-Click Redact & Download**: Click "✂️ Redact & Generate Sanitized PDF" to download a permanently scrubbed document.
+* **Step 3: 1-Click Redact & Download**: Click "Redact & Generate Sanitized PDF" to download a permanently scrubbed document.
 * **Developer & Diagnostics Expander**: Tucked in the sidebar to review system readiness, tweak thresholds, or inspect false positives saved by the Context Gate.
 
 ---
@@ -167,7 +167,7 @@ python cli.py salary_slip.pdf -e INDIAN_PAN PERSON INDIAN_BANK_ACCOUNT
 ---
 
 <a id="tests"></a>
-## 🧪 Automated Testing
+## Automated Testing
 
 The codebase includes an extensive automated test suite covering checksum algorithms, proximity context gates, multi-line headers, and edge-case protection:
 
@@ -181,7 +181,7 @@ PYTHONPATH=. pytest tests/ -v
 
 ---
 
-## 🏗️ Architecture Overview
+## Architecture Overview
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────┐
@@ -222,7 +222,37 @@ PYTHONPATH=. pytest tests/ -v
 
 ---
 
-## 🤝 Contributing
+## Limitations & Planned Enhancements
+
+While Indian PII Scrubber provides deterministic math validation and local SLM inference for standard Indian financial and identity documents, the following limitations are identified for future enhancements:
+
+1. **Non-Latin Indic Scripts**:
+   * *Limitation*: Regex patterns and the local GLiNER model are trained on Latin-script text. Documents printed entirely in regional Indian scripts (such as Devanagari, Tamil, Telugu, Bengali, Kannada, or Marathi) are not currently parsed.
+   * *Enhancement*: Integrate multilingual Indic NER models and regional language Tesseract OCR language packs (`hin`, `tam`, `tel`, etc.).
+
+2. **Handwritten Content & Signatures**:
+   * *Limitation*: Detection is optimized for printed, digital, and OCR-extracted typography. Handwritten text in physical application forms and handwritten signatures on cheques or certificates are not consistently detected.
+   * *Enhancement*: Incorporate handwritten text recognition (HTR) and vision-based signature segmentation and masking.
+
+3. **Non-PDF Document Ingestion**:
+   * *Limitation*: The redaction pipeline operates exclusively on PDF files. Standalone image formats (`.jpg`, `.png`, `.tiff`) and office documents (`.docx`, `.xlsx`) must be converted to PDF before processing.
+   * *Enhancement*: Add direct image file ingestion and vector sanitization for spreadsheets and document formats.
+
+4. **Pseudonymization & Synthetic Data Replacement**:
+   * *Limitation*: Detected entities are permanently wiped using solid vector blackboxes. The engine does not currently support reversible tokenization or synthetic pseudonym replacement (e.g., swapping real names/PANs with valid synthetic dummy equivalents).
+   * *Enhancement*: Implement format-preserving synthetic entity substitution for machine learning datasets and LLM fine-tuning pipelines.
+
+5. **Throughput on Large Documents**:
+   * *Limitation*: Running local SLM token classification across 100+ page documents on CPU-only machines introduces processing latency.
+   * *Enhancement*: Introduce batched GPU inference, ONNX runtime acceleration, and page-level parallel worker pools.
+
+6. **Declarative Rule Configuration**:
+   * *Limitation*: Adding custom entity recognizers or modifying context proximity rules currently requires editing Python source files.
+   * *Enhancement*: Support external YAML/JSON configuration files and GUI rule-builders for organization-specific PII schemas.
+
+---
+
+## Contributing
 
 Contributions from the community are warmly welcomed! Whether you want to add support for new regional document formats, refine context keywords, or optimize OCR performance:
 
@@ -234,6 +264,6 @@ Contributions from the community are warmly welcomed! Whether you want to add su
 
 ---
 
-## 📄 License
+## License
 
 Distributed under the [MIT License](LICENSE). Free for academic, personal, and commercial use.
